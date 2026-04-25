@@ -1,23 +1,65 @@
 {
-  "name": "runnur",
-  "short_name": "runnur",
-  "start_url": "./index.html",
-  "display": "standalone",
+  "name": "SOVEREIGN ENGINE - Runnur",
+  "short_name": "Runnur",
+  "description": "3D runner mobile game with advanced physics and combat systems",
+  "start_url": "/runnur/",
+  "scope": "/runnur/",
+  "display": "fullscreen",
+  "orientation": "portrait-primary",
   "background_color": "#000000",
-  "theme_color": "#000000",
-  "orientation": "portrait",
+  "theme_color": "#00ff41",
+  "categories": ["games"],
+  "screenshots": [
+    {
+      "src": "screenshot-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "screenshot-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
   "icons": [
     {
-      "src": "icon192.png",
+      "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icon512.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "shortcuts": [
+    {
+      "name": "Start Game",
+      "short_name": "Play",
+      "description": "Launch SOVEREIGN ENGINE immediately",
+      "url": "/runnur/?action=start",
+      "icons": [
+        {
+          "src": "icon-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "share_target": {
+    "action": "/runnur/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }
