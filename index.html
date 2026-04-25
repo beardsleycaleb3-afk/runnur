@@ -346,6 +346,35 @@
 
 <script type="module">
 import * as THREE from "https://esm.sh/three@0.177.0";
+class GeometricLRU {
+    constructor(capacity = 960) { // Mapping to your 960-tile grid
+        this.capacity = capacity;
+        this.cache = new Map();
+    }
+
+    // Map a geometric key to the mirror
+    get(key) {
+        if (!this.cache.has(key)) return null;
+        const val = this.cache.get(key);
+        this.cache.delete(key);
+        this.cache.set(key, val);
+        return val;
+    }
+
+    // Set data and enforce the limit
+    put(key, value) {
+        if (this.cache.has(key)) {
+            this.cache.delete(key);
+        } else if (this.cache.size >= this.capacity) {
+            // Evict the oldest geometric entry (the first one)
+            this.cache.delete(this.cache.keys().next().value);
+        }
+        this.cache.set(key, value);
+    }
+}
+
+// Initialize for runnur
+const mapper = new GeometricLRU(960);
 
 /**
  * SovereignEngine - Self-Executing Module
@@ -2494,6 +2523,13 @@ function loop() {
 
   frameCount++;
   animationId = requestAnimationFrame(loop);
+}
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('runnur mirror active:', reg.scope))
+            .catch(err => console.log('Mirror failed:', err));
+    });
 }
 
 // Start the engine
