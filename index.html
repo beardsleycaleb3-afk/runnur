@@ -1,0 +1,2504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Mobile Viewport Configuration: Ensures no scaling and proper touch dimensions -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  
+  <!-- Web App Manifest -->
+  <link rel="manifest" id="manifestLinkEl">
+  
+  <div id="sovContainerEl">
+    <!-- 
+      SOVEREIGN ENGINE v48.0 - "THE GAUNTLET PROTOCOL" (MOBILE TOUCH EDITION)
+      -------------------------------------------------
+      Architecture:
+        1. SovereignCore: Main loop & render cycle.
+        2. LatticeSystem: Float32Array matrix management & visualization.
+        3. DataStructures: DSU, Bloom, LRU (The "Sultan 47" Efficiency Layer).
+        4. GauntletPhysics: 5-lane runner, collision, player lerping.
+        5. AudioIngest: Web Audio API integration for real-time lattice manipulation.
+        6. SovereignBuster: Combat system with charged shots.
+        7. CareerStack: Persistence layer for high scores and milestones.
+      Modifications:
+        - Removed all Keyboard/Mouse listeners.
+        - Optimized for Touch-only interaction.
+        - Added Viewport meta tags for mobile scaling.
+        - Updated: Three.js 3D rendering with Sovereign Camera system
+        - Section 2: Lattice Floor - 3D Scrolling Environment with custom shader
+        - Integrated SovereignDSU for collision detection (System Breach Protocol)
+        - Added: AnimModel Controller with Quiet Hierarchy (BST) for 3D Actor animations
+        - Added: SovereignBuster combat system with charged shots
+        - Added: Career Stack persistence with hex milestones
+        - Added: PWA Manifest and Service Worker for offline deployment
+    -->
+
+    <!-- CSS STYLES (INLINE) -->
+    <style>
+      :root {
+        --sov-green: #00ff41;
+        --sov-purple: #bc13fe;
+        --sov-dark: #050505;
+        --sov-dim: #003b0f;
+        --sov-font: 'Courier New', Courier, monospace;
+      }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #000;
+        color: var(--sov-green);
+        font-family: var(--sov-font);
+        overflow: hidden; /* Prevent scroll */
+        touch-action: none; /* Disable browser handling of gestures */
+        user-select: none; /* Prevent text selection */
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      #sovContainerEl {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        background: var(--sov-dark);
+        border: none; /* Removed border for full screen mobile feel */
+        display: flex;
+        flex-direction: column;
+      }
+
+      canvas {
+        image-rendering: pixelated; /* Retro aesthetic */
+        width: 100%;
+        height: 100%;
+        flex-grow: 1;
+        background: #000;
+        display: block;
+      }
+
+      /* HUD Overlay */
+      #hudEl {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        padding: 15px;
+        box-sizing: border-box;
+        display: flex;
+        justify-content: space-between;
+        pointer-events: none;
+        text-shadow: 0 0 5px var(--sov-green);
+        font-size: 16px;
+        background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+        z-index: 10;
+      }
+
+      .hud-stat { display: flex; flex-direction: column; }
+      .hud-label { font-size: 12px; color: var(--sov-purple); margin-bottom: 2px;}
+      .hud-value { font-weight: bold; }
+
+      /* Controls - Optimized for Touch */
+      #controlsEl {
+        height: 140px; /* Larger touch area */
+        border-top: 2px solid var(--sov-dim);
+        background: #0a0a0a;
+        display: flex;
+        flex-direction: row; /* Side by side is better for thumbs on mobile */
+        align-items: center;
+        justify-content: space-around;
+        padding: 10px;
+        padding-bottom: 20px; /* Extra padding for bottom safe area */
+        z-index: 20;
+      }
+
+      button {
+        background: var(--sov-dark);
+        color: var(--sov-green);
+        border: 2px solid var(--sov-green);
+        padding: 20px 40px; /* Larger padding for touch */
+        font-family: var(--sov-font);
+        font-weight: bold;
+        font-size: 18px;
+        cursor: pointer;
+        text-transform: uppercase;
+        transition: all 0.1s;
+        border-radius: 8px; /* Slight radius for modern touch feel */
+        width: 45%; /* Occupy almost half the screen each */
+        height: 80px;
+      }
+
+      button:active {
+        background: var(--sov-green);
+        color: var(--sov-dark);
+        box-shadow: 0 0 20px var(--sov-green);
+        transform: scale(0.98);
+      }
+
+      button:disabled {
+        border-color: #333;
+        color: #333;
+        cursor: not-allowed;
+        background: #000;
+        box-shadow: none;
+        transform: none;
+      }
+
+      /* Reboot Button */
+      #rebootBtn {
+        width: auto;
+        height: 30px;
+        padding: 5px 15px;
+        font-size: 12px;
+        margin-top: 10px;
+        background: #220022;
+        border-color: var(--sov-purple);
+        color: var(--sov-purple);
+      }
+
+      /* Modal */
+      #modalOverlayEl {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.95);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 100;
+        padding: 20px;
+        box-sizing: border-box;
+        text-align: center;
+        overflow-y: auto; /* Allow scrolling if modal content is tall */
+      }
+
+      h1 {
+        color: var(--sov-green);
+        text-shadow: 0 0 10px var(--sov-green);
+        margin-bottom: 10px;
+        font-size: 28px;
+      }
+
+      .hidden { display: none !important; }
+
+      /* Card Ingest */
+      #cardPreviewEl {
+        width: 100px;
+        height: 100px;
+        border: 2px dashed var(--sov-purple);
+        margin: 20px auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--sov-purple);
+        font-size: 12px;
+        border-radius: 8px;
+      }
+
+      input[type="file"] { display: none; }
+
+      /* Scanline Effect */
+      .scanline {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        left: 0;
+        top: 0;
+        background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+        background-size: 100% 4px;
+        pointer-events: none;
+        z-index: 50;
+      }
+
+      /* System Breach Flash Overlay */
+      #flashOverlayEl {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: var(--sov-purple);
+        opacity: 0;
+        pointer-events: none;
+        z-index: 90;
+        transition: opacity 0.05s;
+      }
+
+      /* Charge Indicator */
+      #chargeIndicatorEl {
+        position: absolute;
+        bottom: 160px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100px;
+        height: 10px;
+        border: 2px solid var(--sov-purple);
+        background: rgba(0,0,0,0.8);
+        border-radius: 5px;
+        overflow: hidden;
+        z-index: 15;
+        display: none;
+      }
+
+      #chargeBarEl {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, var(--sov-green), var(--sov-purple));
+        transition: width 0.05s linear;
+      }
+
+      #chargeTextEl {
+        position: absolute;
+        top: -20px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 10px;
+        color: var(--sov-purple);
+        white-space: nowrap;
+      }
+
+      /* Hex Milestone Notification */
+      #milestoneEl {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 24px;
+        color: var(--sov-purple);
+        text-shadow: 0 0 10px var(--sov-purple);
+        z-index: 80;
+        display: none;
+        animation: milestonePulse 2s ease-out forwards;
+      }
+
+      @keyframes milestonePulse {
+        0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+        20% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+        80% { opacity: 1; }
+        100% { opacity: 0; }
+      }
+    </style>
+
+    <div class="scanline"></div>
+    
+    <!-- HUD -->
+    <div id="hudEl">
+      <div class="hud-stat">
+        <span class="hud-label">YARDS</span>
+        <span id="scoreValEl" class="hud-value">0</span>
+      </div>
+      <div class="hud-stat" style="text-align:center">
+        <span class="hud-label">SYNC</span>
+        <span id="syncValEl" class="hud-value">018810</span>
+      </div>
+      <div class="hud-stat" style="text-align:right">
+        <span class="hud-label">HIGH YDS</span>
+        <span id="highScoreValEl" class="hud-value">0</span>
+      </div>
+    </div>
+
+    <!-- Main Canvas -->
+    <canvas id="gameCanvasEl"></canvas>
+
+    <!-- Hex Milestone Notification -->
+    <div id="milestoneEl">HEX MILESTONE UNLOCKED!</div>
+
+    <!-- Charge Indicator -->
+    <div id="chargeIndicatorEl">
+      <div id="chargeTextEl">CHARGING...</div>
+      <div id="chargeBarEl"></div>
+    </div>
+
+    <!-- System Breach Flash Overlay -->
+    <div id="flashOverlayEl" class="hidden"></div>
+
+    <!-- Controls (Touch Only) -->
+    <div id="controlsEl">
+      <button id="leftBtn">&lt;&lt; DRIFT L</button>
+      <button id="rightBtn">DRIFT R &gt;&gt;</button>
+    </div>
+
+    <!-- Start/Config Modal -->
+    <div id="modalOverlayEl">
+      <h1>SOVEREIGN ENGINE</h1>
+      <div style="margin-bottom:20px; font-size:14px; color:var(--sov-purple);">
+        SULTAN 47 PROTOCOL INITIALIZED<br>
+        LOADING LATTICE ARCHITECTURE...<br>
+        <span style="font-size:12px; color:var(--sov-green)">ANIMMODEL CONTROLLER: READY</span><br>
+        <span style="font-size:12px; color:var(--sov-green)">SOVEREIGN BUSTER: ONLINE</span>
+      </div>
+      
+      <button id="startBtn">INITIALIZE SYSTEM</button>
+      <button id="rebootBtn">REBOOT SYSTEM</button>
+      
+      <div style="margin-top:30px; border-top:1px solid var(--sov-dim); padding-top:10px; width:100%; max-width:400px;">
+        <div class="hud-label">CARD INGEST MODULE</div>
+        <div style="font-size:12px; color:#888; margin-bottom:10px;">UPLOAD IMAGE TO MIRROR ATTRIBUTES</div>
+        <div id="cardPreviewEl">NO DATA</div>
+        <button id="uploadBtn" style="font-size:14px; padding:15px 30px; width:auto;">UPLOAD BITSTRAND</button>
+        <input type="file" id="fileInputEl" accept="image/*">
+      </div>
+    </div>
+  </div>
+
+<script type="module">
+import * as THREE from "https://esm.sh/three@0.177.0";
+
+/**
+ * SovereignEngine - Self-Executing Module
+ * Protects the global namespace and initializes the "Sultan 47" suite.
+ * Modified for Touch-Only interaction (Mobile/Android/Chrome).
+ * Updated: Added Three.js 3D rendering for Sovereign Camera system
+ * Section 2: Lattice Floor - Scrolling 3D Environment with Shader
+ * Integrated: SovereignDSU for collision detection (System Breach Protocol)
+ * Added: AnimModel Controller with Quiet Hierarchy (BST) for 3D Actor animations
+ * Added: SovereignBuster combat system with charged shots
+ * Added: Career Stack persistence with hex milestones
+ * Added: PWA Manifest and Service Worker for offline deployment
+ */
+
+// --- CONSTANTS & CONFIGURATION ---
+const CONFIG = {
+  latticeW: 32,
+  latticeH: 30,
+  // Canvas dimensions managed dynamically for responsiveness, but logical size fixed:
+  canvasW: 350,
+  canvasH: 500,
+  decay: 0.92, // d7-d9 Decay Rate
+  groundLaw: 0.037, // #14-4 Grounding Law constant - used for animation smoothing
+  driftThreshold: 0.65, // Energy bleed threshold
+  solidifyThreshold: 0.8, // Energy required to bake an object
+  colors: {
+    green: '#00ff41',
+    purple: '#bc13fe',
+    bg: '#000000'
+  },
+  physics: {
+    laneCount: 5,
+    laneWidth: 2.0, // 3D World Units
+    playerSpeed: 0.35, // Lerp factor (Snappy like Mega Man X)
+    obstacleBaseSpeed: 15.0, // Base forward speed (units per second)
+    dashMultiplier: 1.5, // Sovereign Dash speed boost
+    dashDuration: 1.5, // Seconds
+    doubleTapThreshold: 300 // ms
+  },
+  buster: {
+    chargeTime: 500, // ms to charge
+    projectileSpeedMultiplier: 3.0, // 3x player speed
+    diamondSize: 3.0, // Size of charged Data Diamond
+    sphereSize: 0.4 // Size of normal projectile
+  },
+  camera: {
+    fov: 75,
+    near: 0.1,
+    far: 100,
+    tiltAngle: 15 * (Math.PI / 180), // 15 degrees in radians
+    positionY: 15,
+    positionZ: 20
+  },
+  fog: {
+    color: 0xbc13fe, // Sovereign Purple
+    near: 20,
+    far: 80
+  },
+  floor: {
+    segmentLength: 40,
+    numSegments: 3,
+    gridWidth: 20, // 5 lanes * 4 units width total (plus margins)
+    gridDepth: 40
+  },
+  collision: {
+    gridSize: 1.2, // Size of spatial grid cells for DSU collision detection
+    shakeDuration: 0.2, // 200ms camera shake duration
+    shakeAmplitude: 0.4, // Camera shake intensity
+    flashDuration: 0.15 // Screen flash duration in seconds
+  },
+  animation: {
+    blendSpeed: 0.037, // Animation transition smoothing constant (X3 fluidity)
+    x3Multiplier: 3.0 // Speed multiplier for X3 fluidity during dash
+  },
+  milestones: {
+    hexInterval: 31, // $1F in hex = 31 in decimal
+    unlockColors: ['#00ff41', '#ff0055', '#ffff00', '#00ffff', '#ff00ff']
+  }
+};
+
+// --- DATA STRUCTURES (THE "SULTAN" EFFICIENCY LAYER) ---
+
+/**
+ * SovereignDSU: Disjoint Set Union with Path Compression & Union by Rank
+ * Manages the logical connectivity of the lattice gates.
+ * Now also used for spatial partitioning in collision detection (System Breach Protocol).
+ */
+class SovereignDSU {
+  constructor(size) {
+    this.parent = new Int16Array(size);
+    this.rank = new Uint8Array(size);
+    for (let i = 0; i < size; i++) {
+      this.parent[i] = i;
+      this.rank[i] = 0;
+    }
+  }
+
+  // Find with Path Compression
+  find(i) {
+    if (this.parent[i] !== i) {
+      this.parent[i] = this.find(this.parent[i]); // Path compression
+    }
+    return this.parent[i];
+  }
+
+  // Union by Rank
+  union(x, y) {
+    let xRoot = this.find(x);
+    let yRoot = this.find(y);
+
+    if (xRoot === yRoot) return;
+
+    // Mirror Path Optimization (018810 Parity)
+    if (this.rank[xRoot] < this.rank[yRoot]) {
+      this.parent[xRoot] = yRoot;
+    } else if (this.rank[xRoot] > this.rank[yRoot]) {
+      this.parent[yRoot] = xRoot;
+    } else {
+      this.parent[yRoot] = xRoot;
+      this.rank[xRoot]++;
+    }
+  }
+
+  getSetCount() {
+    let uniqueRoots = new Set();
+    for (let i = 0; i < this.parent.length; i++) {
+      uniqueRoots.add(this.find(i));
+    }
+    return uniqueRoots.size;
+  }
+
+  reset() {
+    for (let i = 0; i < this.parent.length; i++) {
+      this.parent[i] = i;
+      this.rank[i] = 0;
+    }
+  }
+}
+
+/**
+ * SovereignBloom: Probabilistic Filter for Zero-Latency Collision Checks
+ * 16,384 bits bit-field (512 * 32-bit integers).
+ * Updated: Added remove() method to support dynamic obstacle management.
+ */
+class SovereignBloom {
+  constructor() {
+    this.size = 16384;
+    this.bitField = new Uint32Array(this.size / 32);
+    this.salts = [0x018810, 0x474755, 0xDECADE]; // Hash salts (fixed hex literal)
+  }
+
+  // 018810 Mirror Protocol Hash
+  _hash(val, seed) {
+    let hash = seed;
+    for (let i = 0; i < 4; i++) {
+      hash = ((hash << 5) - hash) + ((val >> (i * 8)) & 0xFF);
+      hash |= 0;
+    }
+    return Math.abs(hash) % this.size;
+  }
+
+  add(val) {
+    this.salts.forEach(salt => {
+      let h = this._hash(val, salt);
+      this.bitField[Math.floor(h / 32)] |= (1 << (h % 32));
+    });
+  }
+
+  check(val) {
+    let result = true;
+    this.salts.forEach(salt => {
+      let h = this._hash(val, salt);
+      if ((this.bitField[Math.floor(h / 32)] & (1 << (h % 32))) === 0) {
+        result = false;
+      }
+    });
+    return result;
+  }
+  
+  // Remove operation (Note: Standard Bloom filters do not support efficient deletion without counting bits. 
+  // This implementation simply unsets the bits, which may lead to false negatives over time.)
+  remove(val) {
+    this.salts.forEach(salt => {
+      let h = this._hash(val, salt);
+      this.bitField[Math.floor(h / 32)] &= ~(1 << (h % 32));
+    });
+  }
+
+  // bitwise NOT clear (rough approximation via fill for Uint32 safety)
+  flush() {
+    this.bitField.fill(0);
+  }
+}
+
+/**
+ * SovereignQueue: Simple FIFO Queue implementation for Obstacle Management.
+ * Ensures obstacles are processed in the order they were spawned (First-In-First-Out).
+ */
+class SovereignQueue {
+  constructor() {
+    this.items = [];
+  }
+
+  enqueue(element) {
+    this.items.push(element);
+  }
+
+  dequeue() {
+    if (this.isEmpty()) return null;
+    return this.items.shift();
+  }
+
+  front() {
+    if (this.isEmpty()) return null;
+    return this.items[0];
+  }
+
+  isEmpty() {
+    return this.items.length === 0;
+  }
+
+  size() {
+    return this.items.length;
+  }
+
+  // Helper for game iteration (standard Queue doesn't allow iteration, but we need it for physics updates)
+  getAll() {
+    return this.items;
+  }
+}
+
+/**
+ * SovereignLRU: Least Recently Used Cache for Asset Streaming
+ * Capacity: 128 elements. Map + Doubly Linked List.
+ */
+class SovereignLRU {
+  constructor(capacity) {
+    this.capacity = capacity;
+    this.cache = new Map();
+    this.head = null;
+    this.tail = null;
+  }
+
+  _removeNode(node) {
+    if (node.prev) node.prev.next = node.next;
+    else this.head = node.next;
+
+    if (node.next) node.next.prev = node.prev;
+    else this.tail = node.prev;
+  }
+
+  _addToHead(node) {
+    node.next = this.head;
+    node.prev = null;
+    if (this.head) this.head.prev = node;
+    this.head = node;
+    if (!this.tail) this.tail = node;
+  }
+
+  get(key) {
+    if (this.cache.has(key)) {
+      let node = this.cache.get(key);
+      this._removeNode(node);
+      this._addToHead(node);
+      return node.val;
+    }
+    return undefined;
+  }
+
+  put(key, val) {
+    if (this.cache.has(key)) {
+      let node = this.cache.get(key);
+      node.val = val;
+      this._removeNode(node);
+      this._addToHead(node);
+    } else {
+      let newNode = { key: key, val: val, prev: null, next: null };
+      this.cache.set(key, newNode);
+      this._addToHead(newNode);
+
+      if (this.cache.size > this.capacity) {
+        // Evict Tail
+        this.cache.delete(this.tail.key);
+        this._removeNode(this.tail);
+      }
+    }
+  }
+
+  peek() {
+    return this.head ? this.head.val : null;
+  }
+
+  clear() {
+    this.cache.clear();
+    this.head = null;
+    this.tail = null;
+  }
+}
+
+// --- ANIMATION SYSTEM ---
+
+/**
+ * QuietHierarchyBST: Binary Search Tree for storing animation keyframes
+ * Implements efficient keyframe lookup and interpolation for smooth animations
+ */
+class QuietHierarchyBST {
+  constructor() {
+    this.root = null;
+  }
+  
+  insert(keyframe, time) {
+    this.root = this._insert(this.root, keyframe, time);
+  }
+  
+  _insert(node, keyframe, time) {
+    if (!node) {
+      return { time, keyframe, left: null, right: null };
+    }
+    
+    if (time < node.time) {
+      node.left = this._insert(node.left, keyframe, time);
+    } else {
+      node.right = this._insert(node.right, keyframe, time);
+    }
+    
+    return node;
+  }
+  
+  findClosest(time) {
+    return this._findClosest(this.root, time, null, null);
+  }
+  
+  _findClosest(node, time, lower, upper) {
+    if (!node) {
+      return { lower, upper };
+    }
+    
+    if (time === node.time) {
+      return { lower: node, upper: node };
+    }
+    
+    if (time < node.time) {
+      return this._findClosest(node.left, time, lower, node);
+    } else {
+      return this._findClosest(node.right, time, node, upper);
+    }
+  }
+}
+
+/**
+ * AnimModel: Controller for 3D Actor animations
+ * Uses Quiet Hierarchy (BST) to store keyframes for RUN, DASH, JUMP, and SHOOT states
+ * Switches between states based on user input without interrupting forward velocity
+ * Uses 0.037 constant to smooth transitions ensuring 'X3' fluidity
+ */
+class AnimModel {
+  constructor(playerMesh) {
+    this.playerMesh = playerMesh;
+    this.currentState = 'RUN';
+    this.previousState = 'RUN';
+    this.blendFactor = 1.0; // Start fully blended
+    this.animationTime = 0.0;
+    this.transitionSpeed = CONFIG.animation.blendSpeed; // 0.037 smoothing constant
+    this.forwardVelocity = 0.0; // Cached forward velocity to preserve during transitions
+    
+    // Initialize BSTs for each animation state
+    this.animations = {
+      RUN: this.createRunAnimation(),
+      DASH: this.createDashAnimation(),
+      JUMP: this.createJumpAnimation(),
+      SHOOT: this.createShootAnimation()
+    };
+    
+    // Current pose data
+    this.currentPose = {
+      rotation: { x: 0, y: 0, z: 0 },
+      offsetY: 0,
+      scale: { x: 1, y: 1, z: 1 }
+    };
+  }
+  
+  /**
+   * Create RUN animation keyframes
+   * Standard running cycle with bobbing and subtle rotation
+   */
+  createRunAnimation() {
+    const bst = new QuietHierarchyBST();
+    const frames = 12; // High frame count for smooth animation
+    for (let i = 0; i < frames; i++) {
+      let t = i / frames;
+      let keyframe = {
+        rotation: { 
+          x: Math.sin(t * Math.PI * 2) * 0.1, 
+          y: 0, 
+          z: Math.cos(t * Math.PI * 2) * 0.05 
+        },
+        offsetY: Math.abs(Math.sin(t * Math.PI * 2)) * 0.15,
+        scale: { x: 1.0, y: 1.0, z: 1.0 }
+      };
+      bst.insert(keyframe, t);
+    }
+    return bst;
+  }
+  
+  /**
+   * Create DASH animation keyframes
+   * Aggressive forward lean with stretch effect (X3 fluidity)
+   */
+  createDashAnimation() {
+    const bst = new QuietHierarchyBST();
+    const frames = 8;
+    for (let i = 0; i < frames; i++) {
+      let t = i / frames;
+      let leanAmount = 0.4 + Math.sin(t * Math.PI * 2) * 0.1;
+      let keyframe = {
+        rotation: { 
+          x: leanAmount, 
+          y: 0, 
+          z: Math.sin(t * Math.PI * 2) * 0.05 
+        },
+        offsetY: 0.1 + Math.abs(Math.sin(t * Math.PI * 4)) * 0.05,
+        scale: { x: 1.15, y: 0.85, z: 1.15 } // Stretch effect
+      };
+      bst.insert(keyframe, t);
+    }
+    return bst;
+  }
+  
+  /**
+   * Create JUMP animation keyframes
+   * Upward arc with lean-back posture
+   */
+  createJumpAnimation() {
+    const bst = new QuietHierarchyBST();
+    const frames = 10;
+    for (let i = 0; i < frames; i++) {
+      let t = i / frames;
+      let keyframe = {
+        rotation: { x: -0.3, y: 0, z: 0 },
+        offsetY: 0.3 + Math.sin(t * Math.PI) * 0.3,
+        scale: { x: 0.95, y: 1.1, z: 0.95 } // Slight stretch
+      };
+      bst.insert(keyframe, t);
+    }
+    return bst;
+  }
+  
+  /**
+   * Create SHOOT animation keyframes
+   * Recoil effect with subtle shake
+   */
+  createShootAnimation() {
+    const bst = new QuietHierarchyBST();
+    const frames = 6;
+    for (let i = 0; i < frames; i++) {
+      let t = i / frames;
+      // Recoil effect: sharp backward rotation at start
+      let recoil = t < 0.3 ? -t * 0.8 : (t - 0.3) * 0.3;
+      let keyframe = {
+        rotation: { 
+          x: 0.1 + recoil, 
+          y: Math.sin(t * Math.PI * 2) * 0.1, 
+          z: 0 
+        },
+        offsetY: 0.05,
+        scale: { x: 1.0, y: 1.0, z: 1.0 }
+      };
+      bst.insert(keyframe, t);
+    }
+    return bst;
+  }
+  
+  /**
+   * Switch animation state with velocity caching
+   * Ensures forward velocity is not interrupted during transitions
+   */
+  switchState(newState, currentVelocity) {
+    if (this.animations[newState] && newState !== this.currentState) {
+      this.previousState = this.currentState;
+      this.currentState = newState;
+      this.blendFactor = 0.0; // Reset blend for smooth transition
+      this.forwardVelocity = currentVelocity; // Cache velocity
+    }
+  }
+  
+  /**
+   * Update animation state
+   * @param {number} deltaTime - Time since last frame
+   * @param {boolean} isDashing - Whether player is dashing
+   * @param {boolean} isJumping - Whether player is jumping
+   * @param {boolean} isShooting - Whether player is shooting
+   * @param {number} currentVelocity - Current forward velocity
+   * @returns {number} Cached forward velocity (preserved during transitions)
+   */
+  update(deltaTime, isDashing, isJumping, isShooting, currentVelocity) {
+    // Determine target state based on input priority
+    let targetState = 'RUN';
+    if (isDashing) targetState = 'DASH';
+    else if (isJumping) targetState = 'JUMP';
+    else if (isShooting) targetState = 'SHOOT';
+    
+    // Switch state with velocity caching
+    this.switchState(targetState, currentVelocity);
+    
+    // Advance animation time - X3 fluidity multiplier during dash
+    let timeMultiplier = isDashing ? CONFIG.animation.x3Multiplier : 1.0;
+    this.animationTime += deltaTime * timeMultiplier;
+    if (this.animationTime > 1.0) this.animationTime -= 1.0;
+    
+    // Get current keyframe from BST
+    let currentBST = this.animations[this.currentState];
+    let { lower, upper } = currentBST.findClosest(this.animationTime);
+    
+    let currentKeyframe = this.interpolateKeyframes(lower, upper, this.animationTime);
+    
+    // Apply blend factor for smooth transitions using 0.037 constant
+    this.blendFactor += this.transitionSpeed;
+    if (this.blendFactor > 1.0) this.blendFactor = 1.0;
+    
+    // Store the current pose
+    this.currentPose = {
+      rotation: currentKeyframe.rotation,
+      offsetY: currentKeyframe.offsetY,
+      scale: currentKeyframe.scale
+    };
+    
+    // Return the cached forward velocity to ensure it's not interrupted
+    return this.forwardVelocity;
+  }
+  
+  /**
+   * Interpolate between two keyframes
+   */
+  interpolateKeyframes(lower, upper, time) {
+    if (!lower || !upper || lower === upper) {
+      return lower ? lower.keyframe : { 
+        rotation: { x: 0, y: 0, z: 0 }, 
+        offsetY: 0, 
+        scale: { x: 1, y: 1, z: 1 } 
+      };
+    }
+    
+    let range = upper.time - lower.time;
+    let alpha = range > 0 ? (time - lower.time) / range : 0;
+    
+    return {
+      rotation: {
+        x: this.lerp(lower.keyframe.rotation.x, upper.keyframe.rotation.x, alpha),
+        y: this.lerp(lower.keyframe.rotation.y, upper.keyframe.rotation.y, alpha),
+        z: this.lerp(lower.keyframe.rotation.z, upper.keyframe.rotation.z, alpha)
+      },
+      offsetY: this.lerp(lower.keyframe.offsetY, upper.keyframe.offsetY, alpha),
+      scale: {
+        x: this.lerp(lower.keyframe.scale.x, upper.keyframe.scale.x, alpha),
+        y: this.lerp(lower.keyframe.scale.y, upper.keyframe.scale.y, alpha),
+        z: this.lerp(lower.keyframe.scale.z, upper.keyframe.scale.z, alpha)
+      }
+    };
+  }
+  
+  lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+  
+  /**
+   * Get the current animation pose
+   */
+  getPose() {
+    return this.currentPose;
+  }
+}
+
+// --- SOVEREIGN BUSTER COMBAT SYSTEM ---
+
+/**
+ * SovereignBuster: Combat system with normal and charged projectiles
+ * Normal: Glowing sphere traveling at 3x player speed
+ * Charged: Data Diamond that clears all obstacles in lane
+ */
+class SovereignBuster {
+  constructor(scene, bloomFilter) {
+    this.scene = scene;
+    this.bloomFilter = bloomFilter;
+    this.projectiles = [];
+    this.isCharging = false;
+    this.chargeStartTime = 0;
+    this.currentLane = 0; // Lane where shot will be fired
+  }
+
+  /**
+   * Start charging a shot
+   */
+  startCharge(lane) {
+    this.isCharging = true;
+    this.chargeStartTime = Date.now();
+    this.currentLane = lane;
+  }
+
+  /**
+   * Fire the projectile (normal or charged based on hold duration)
+   */
+  fire(playerSpeed, playerX, playerZ) {
+    if (!this.isCharging) return;
+    
+    this.isCharging = false;
+    let chargeDuration = Date.now() - this.chargeStartTime;
+    let isCharged = chargeDuration >= CONFIG.buster.chargeTime;
+    
+    let geometry, material, mesh;
+    
+    if (isCharged) {
+      // Data Diamond - Tetrahedron
+      geometry = new THREE.TetrahedronGeometry(CONFIG.buster.diamondSize);
+      material = new THREE.MeshBasicMaterial({ 
+        color: CONFIG.colors.purple,
+        wireframe: true
+      });
+      mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(playerX, 1.5, playerZ);
+      this.scene.add(mesh);
+      
+      this.projectiles.push({
+        mesh: mesh,
+        type: 'DIAMOND',
+        lane: this.currentLane,
+        speed: playerSpeed * CONFIG.buster.projectileSpeedMultiplier,
+        active: true,
+        isCharged: true
+      });
+    } else {
+      // Normal shot - Glowing sphere
+      geometry = new THREE.SphereGeometry(CONFIG.buster.sphereSize, 8, 8);
+      material = new THREE.MeshBasicMaterial({ 
+        color: CONFIG.colors.green,
+        transparent: true,
+        opacity: 0.8
+      });
+      mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(playerX, 1.5, playerZ);
+      this.scene.add(mesh);
+      
+      this.projectiles.push({
+        mesh: mesh,
+        type: 'SPHERE',
+        lane: this.currentLane,
+        speed: playerSpeed * CONFIG.buster.projectileSpeedMultiplier,
+        active: true,
+        isCharged: false
+      });
+    }
+  }
+
+  /**
+   * Update projectiles and handle collisions using Bloom Filter
+   * Returns array of destroyed obstacles
+   */
+  update(deltaTime, obstacles) {
+    let destroyedObstacles = [];
+    
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      let proj = this.projectiles[i];
+      
+      // Move projectile forward (negative Z direction)
+      proj.mesh.position.z -= proj.speed * deltaTime;
+      
+      // Rotate projectiles for visual effect
+      proj.mesh.rotation.x += deltaTime * 2;
+      proj.mesh.rotation.y += deltaTime * 3;
+      
+      // Bloom Filter collision detection
+      // Hash projectile position for Bloom Filter check
+      let projSpatialKey = (proj.lane << 16) | Math.abs(Math.floor(proj.mesh.position.z));
+      
+      if (proj.isCharged) {
+        // Data Diamond: Check ALL obstacles in the same lane
+        for (let j = obstacles.length - 1; j >= 0; j--) {
+          let obs = obstacles[j];
+          if (obs.lane === proj.lane && obs.active) {
+            // Check Z distance
+            let distZ = Math.abs(obs.mesh.position.z - proj.mesh.position.z);
+            if (distZ < 5.0) { // Diamond affects wide area
+              destroyedObstacles.push(obs);
+              obs.active = false;
+            }
+          }
+        }
+        
+        // Remove diamond after traveling sufficient distance
+        if (proj.mesh.position.z < -60) {
+          this.scene.remove(proj.mesh);
+          proj.mesh.geometry.dispose();
+          proj.mesh.material.dispose();
+          this.projectiles.splice(i, 1);
+        }
+      } else {
+        // Normal sphere: Check Bloom Filter for instant hit detection
+        if (this.bloomFilter.check(projSpatialKey)) {
+          // Hit detected - find which obstacle
+          for (let j = obstacles.length - 1; j >= 0; j--) {
+            let obs = obstacles[j];
+            if (obs.lane === proj.lane && obs.active) {
+              let distZ = Math.abs(obs.mesh.position.z - proj.mesh.position.z);
+              if (distZ < 2.0) { // Sphere hit radius
+                destroyedObstacles.push(obs);
+                obs.active = false;
+                break; // Sphere destroys one obstacle
+              }
+            }
+          }
+          
+          // Remove projectile on hit
+          this.scene.remove(proj.mesh);
+          proj.mesh.geometry.dispose();
+          proj.mesh.material.dispose();
+          this.projectiles.splice(i, 1);
+        } else if (proj.mesh.position.z < -60) {
+          // Remove out-of-range projectile
+          this.scene.remove(proj.mesh);
+          proj.mesh.geometry.dispose();
+          proj.mesh.material.dispose();
+          this.projectiles.splice(i, 1);
+        }
+      }
+    }
+    
+    return destroyedObstacles;
+  }
+
+  /**
+   * Clear all projectiles (e.g., on game reset)
+   */
+  clear() {
+    for (let proj of this.projectiles) {
+      this.scene.remove(proj.mesh);
+      proj.mesh.geometry.dispose();
+      proj.mesh.material.dispose();
+    }
+    this.projectiles = [];
+    this.isCharging = false;
+  }
+}
+
+// --- CORE ENGINE CLASSES ---
+
+/**
+ * SovereignLattice: Manages the 960-gate Float32Array Matrix.
+ */
+class SovereignLattice {
+  constructor(width, height) {
+    this.width = width;
+    this.height = height;
+    this.total = width * height;
+    this.matrix = new Float32Array(this.total); // The 32x30 lattice
+    this.dsu = new SovereignDSU(this.total);
+  }
+
+  // #14-4 Grounding Law: Decay matrix by 0.92, floor at 0.037
+  decay() {
+    for (let i = 0; i < this.total; i++) {
+      let val = this.matrix[i];
+      if (val > CONFIG.groundLaw) {
+        val *= CONFIG.decay;
+      } else {
+        val = CONFIG.groundLaw; // Maintain idle hum
+      }
+      this.matrix[i] = val;
+    }
+  }
+
+  // Ingest Audio Data: Map FFT to Matrix
+  ingestAudio(dataArray) {
+    let step = Math.floor(dataArray.length / this.total);
+    for (let i = 0; i < this.total; i++) {
+      let audioVal = dataArray[i * step] / 255.0;
+      if (audioVal > 0.1) {
+        this.matrix[i] = Math.min(1.0, this.matrix[i] + audioVal);
+      }
+    }
+  }
+
+  // d7-d9 Gauntlet Drift: Energy bleeding based on parity
+  applyDrift(bloomFilter) {
+    for (let i = 0; i < this.total; i++) {
+      let val = this.matrix[i];
+      if (val > CONFIG.driftThreshold) {
+        // 018810 Mirror Parity Logic
+        let isEven = (i % 2 === 0);
+        let offset = isEven ? 31 : 33;
+        let target = i + offset;
+
+        // Handle boundary wrapping (cylinder topology for drift)
+        if (target >= this.total) target -= this.total;
+
+        // Bleed energy
+        let bleed = val * 0.1;
+        this.matrix[i] -= bleed;
+        this.matrix[target] = Math.min(1.0, this.matrix[target] + bleed);
+
+        // Logical Consolidation (DSU)
+        this.dsu.union(i, target);
+
+        // Update Bloom Filter for collision hotspots
+        if (val > CONFIG.solidifyThreshold) {
+          bloomFilter.add(i);
+        }
+      }
+    }
+  }
+
+  getEnergy(x, y) {
+    let idx = y * this.width + x;
+    return this.matrix[idx];
+  }
+
+  setEnergy(x, y, val) {
+    let idx = y * this.width + x;
+    this.matrix[idx] = val;
+  }
+
+  reset() {
+    this.matrix.fill(CONFIG.groundLaw);
+    this.dsu.reset();
+  }
+}
+
+/**
+ * LatticeFloor: Section 2 - The Lattice Floor (3D Scrolling Environment)
+ * Creates a scrolling floor system with custom shader material using #14-4 Grounding Law.
+ * Infinitely loops by repositioning segments as they pass the camera.
+ */
+class LatticeFloor {
+  constructor(scene, latticeSystem) {
+    this.latticeSystem = latticeSystem;
+    this.segments = [];
+    this.segmentLength = CONFIG.floor.segmentLength;
+    this.speed = CONFIG.physics.obstacleBaseSpeed;
+    this.numSegments = CONFIG.floor.numSegments;
+    this.cameraZ = CONFIG.camera.positionZ;
+    
+    // Create data texture for lattice energy visualization
+    this.latticeTexture = this.createLatticeTexture();
+    
+    // Shader uniforms
+    this.uniforms = {
+      uTime: { value: 0 },
+      uPulseSpeed: { value: 4.0 }, // Base pulse speed, increases during Sovereign Dash
+      uGroundLaw: { value: CONFIG.groundLaw }, // #14-4 Grounding Law (0.037)
+      uColor: { value: new THREE.Color(CONFIG.colors.green) }, // Sovereign Green
+      uLatticeData: { value: this.latticeTexture }
+    };
+    
+    // Create PlaneGeometry divided into 32x30 grid (matches lattice matrix)
+    this.geometry = new THREE.PlaneGeometry(
+      CONFIG.floor.gridWidth, 
+      CONFIG.floor.gridDepth, 
+      CONFIG.latticeW, 
+      CONFIG.latticeH
+    );
+    this.geometry.rotateX(-Math.PI / 2); // Lay flat on ground
+    
+    // Custom Shader Material for pulsing grid lines
+    this.material = new THREE.ShaderMaterial({
+      uniforms: this.uniforms,
+      vertexShader: `
+        varying vec2 vUv;
+        varying vec3 vPosition;
+        
+        void main() {
+          vUv = uv;
+          vPosition = position;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float uTime;
+        uniform float uPulseSpeed;
+        uniform float uGroundLaw;
+        uniform vec3 uColor;
+        uniform sampler2D uLatticeData;
+        varying vec2 vUv;
+        varying vec3 vPosition;
+        
+        void main() {
+          // Grid lines for 32x30 lattice
+          float gridX = step(0.97, fract(vUv.x * 32.0));
+          float gridY = step(0.97, fract(vUv.y * 30.0));
+          float grid = max(gridX, gridY);
+          
+          // Sample lattice energy data
+          vec2 latticeUV = vUv;
+          vec4 latticeData = texture2D(uLatticeData, latticeUV);
+          float energy = latticeData.r;
+          
+          // Pulse effect using uPulseSpeed
+          // Sovereign Dash increases this value, making the floor "heartbeat" faster
+          float pulse = sin(uTime * uPulseSpeed) * 0.5 + 0.5;
+          float intensity = uGroundLaw + pulse * (1.0 - uGroundLaw);
+          
+          // Add lattice energy influence
+          intensity += energy * 0.5;
+          intensity = clamp(intensity, 0.0, 1.0);
+          
+          // Distance-based fade (creates depth/fog effect)
+          float dist = length(vPosition.xz);
+          float fogFactor = smoothstep(80.0, 10.0, dist);
+          
+          // Sovereign Green with pulse intensity
+          vec3 finalColor = uColor * intensity;
+          
+          // Grid transparency with fog fade
+          float alpha = grid * intensity * fogFactor;
+          
+          // Subtle glow effect on grid lines
+          alpha += grid * intensity * 0.3 * fogFactor;
+          
+          // Add energy-based bloom on high-energy cells
+          if (energy > 0.5) {
+            alpha += (energy - 0.5) * 0.5 * fogFactor;
+          }
+          
+          gl_FragColor = vec4(finalColor, alpha);
+        }
+      `,
+      transparent: true,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
+    
+    // Create floor segments starting at negative Z (into the scene)
+    for (let i = 0; i < this.numSegments; i++) {
+      let mesh = new THREE.Mesh(this.geometry, this.material);
+      mesh.position.z = -10 - i * this.segmentLength;
+      scene.add(mesh);
+      this.segments.push(mesh);
+    }
+  }
+  
+  createLatticeTexture() {
+    // Create a data texture from lattice matrix for shader visualization
+    const size = this.latticeSystem.total;
+    const data = new Float32Array(size * 4); // RGBA
+    const texture = new THREE.DataTexture(
+      data, 
+      CONFIG.latticeW, 
+      CONFIG.latticeH, 
+      THREE.RGBAFormat, 
+      THREE.FloatType
+    );
+    texture.minFilter = THREE.NearestFilter;
+    texture.magFilter = THREE.NearestFilter;
+    texture.needsUpdate = true;
+    return texture;
+  }
+  
+  updateLatticeTexture() {
+    // Update texture with current lattice energy values
+    const data = this.latticeTexture.image.data;
+    for (let i = 0; i < this.latticeSystem.total; i++) {
+      let val = this.latticeSystem.matrix[i];
+      data[i * 4] = val;     // R
+      data[i * 4 + 1] = val; // G
+      data[i * 4 + 2] = val; // B
+      data[i * 4 + 3] = 1.0; // A
+    }
+    this.latticeTexture.needsUpdate = true;
+  }
+  
+  update(deltaTime, totalTime) {
+    // Update shader time uniform for pulse animation
+    this.uniforms.uTime.value = totalTime;
+    
+    // Update lattice energy texture
+    this.updateLatticeTexture();
+    
+    // Move segments towards positive Z (towards camera for runner effect)
+    for (let mesh of this.segments) {
+      mesh.position.z += this.speed * deltaTime;
+      
+      // Recycle segment when it passes the camera's negative Z-axis
+      if (mesh.position.z > this.cameraZ + 10) {
+        // Find the segment furthest into the scene (most negative Z)
+        let minZ = Infinity;
+        for (let m of this.segments) {
+          if (m !== mesh && m.position.z < minZ) {
+            minZ = m.position.z;
+          }
+        }
+        // Position this segment behind the furthest one
+        mesh.position.z = minZ - this.segmentLength;
+      }
+    }
+  }
+  
+  setSpeed(newSpeed) {
+    this.speed = newSpeed;
+  }
+  
+  setPulseSpeed(speed) {
+    this.uniforms.uPulseSpeed.value = speed;
+  }
+  
+  setColor(colorHex) {
+    this.uniforms.uColor.value.setHex(parseInt(colorHex.replace('#', '0x')));
+  }
+}
+
+// Constant list for Maverick Hex IDs ($01 - $3E)
+const MAVERICK_HEX_IDS = Array.from({length: 62}, (_, i) => (i + 1).toString(16).padStart(2, '0').toUpperCase());
+
+/**
+ * GauntletPhysics: 5-Lane Runner Logic with 3D Actor & DSU Collision Detection
+ * Implements SovereignDSU for spatial partitioning collision detection (System Breach Protocol).
+ * Obstacles are treated as 'sets' - if player's set overlaps with obstacle's set on X and Z axes,
+ * a 'System Breach' event is triggered.
+ */
+class GauntletPhysics {
+  constructor(lattice) {
+    this.lattice = lattice;
+    this.lanes = CONFIG.physics.laneCount;
+    this.laneWidth = CONFIG.physics.laneWidth;
+    
+    // Player State
+    this.currentLane = 2; // Start in middle (0-4)
+    this.targetX = 0; // Target world X
+    this.playerPos = new THREE.Vector3(0, 1, 0); // World Position (Y=1 is ground level)
+    
+    // Obstacle Manager: Uses SovereignQueue (FIFO)
+    this.obstacleQueue = new SovereignQueue();
+    this.baseSpeed = CONFIG.physics.obstacleBaseSpeed;
+    this.currentSpeed = this.baseSpeed;
+    
+    this.score = 0;
+    this.distance = 0;
+    
+    // Sovereign Dash State
+    this.isDashing = false;
+    this.dashTimer = 0;
+    
+    // Additional animation states
+    this.isJumping = false;
+    this.jumpTimer = 0;
+    this.isShooting = false;
+    this.shootTimer = 0;
+    
+    // DSU Collision Detection - System Breach Protocol
+    this.gridSize = CONFIG.collision.gridSize; // Size of spatial grid cells
+    
+    // Player's bounding box dimensions for collision
+    this.playerWidth = 0.8;
+    this.playerDepth = 0.8;
+    
+    // Obstacle bounding box dimensions
+    this.obstacleWidth = 1.8;
+    this.obstacleDepth = 1.8;
+  }
+
+  // Get World X position for a given lane index
+  getLaneX(laneIndex) {
+    return (laneIndex - 2) * this.laneWidth;
+  }
+
+  /**
+   * Get the spatial set ID (grid cell) for a given world position
+   * Each grid cell represents a 'set' in the SovereignDSU system
+   */
+  getSpatialSet(x, z) {
+    let gridX = Math.floor(x / this.gridSize);
+    let gridZ = Math.floor(z / this.gridSize);
+    // Create unique string ID for this grid cell (the 'set')
+    return `${gridX},${gridZ}`;
+  }
+
+  /**
+   * Get all spatial sets (grid cells) that an entity occupies
+   * This defines the entity's 'set' in the DSU collision system
+   */
+  getEntitySets(x, z, width, depth) {
+    let sets = new Set();
+    let halfW = width / 2;
+    let halfD = depth / 2;
+    
+    // Check all grid cells the entity's bounding box occupies
+    // We check corners and intermediate cells to cover the entire area
+    let minX = x - halfW;
+    let maxX = x + halfW;
+    let minZ = z - halfD;
+    let maxZ = z + halfD;
+    
+    // Iterate through all grid cells the entity might touch
+    for (let gx = minX; gx <= maxX + this.gridSize * 0.5; gx += this.gridSize) {
+      for (let gz = minZ; gz <= maxZ + this.gridSize * 0.5; gz += this.gridSize) {
+        sets.add(this.getSpatialSet(gx, gz));
+      }
+    }
+    
+    return sets;
+  }
+
+  /**
+   * Check if two entities' sets overlap on X and Z axes
+   * This is the core DSU-based collision detection for System Breach Protocol
+   */
+  checkSetOverlap(playerPos, obsPos) {
+    // Get player's sets
+    let playerSets = this.getEntitySets(
+      playerPos.x, 
+      playerPos.z, 
+      this.playerWidth, 
+      this.playerDepth
+    );
+    
+    // Get obstacle's sets
+    let obsSets = this.getEntitySets(
+      obsPos.x,
+      obsPos.z,
+      this.obstacleWidth,
+      this.obstacleDepth
+    );
+    
+    // Check for any set overlap on X and Z axes
+    for (let set of playerSets) {
+      if (obsSets.has(set)) {
+        return true; // Sets overlap - System Breach!
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * Spawn 3D geometric shapes at the edge of the fog (Z: -50).
+   * Uses 'Bloom Filter' pre-check and '018810 Parity' for Maverick spawning.
+   */
+  spawnObstacle(scene, bloomFilter, frameCount) {
+    let lane = Math.floor(Math.random() * this.lanes);
+    let x = this.getLaneX(lane);
+    
+    // Spawn at edge of fog (Z: -50)
+    let z = -50;
+    
+    // Bloom Filter Pre-check: Check if spawn point is occupied in the lattice
+    let spatialKey = (lane << 16) | Math.abs(z);
+    
+    if (bloomFilter.check(spatialKey)) {
+      return; // Occupied, abort spawn
+    }
+    
+    // Mark as occupied
+    bloomFilter.add(spatialKey);
+    
+    // Determine Obstacle Type based on '018810 Parity' of the frame
+    let isMaverick = (frameCount % 2 === 0);
+    
+    let geometry, material, typeStr;
+    
+    if (isMaverick) {
+      // High-tier 'Maverick' obstacle with unique Hex ID
+      let hexId = MAVERICK_HEX_IDS[Math.floor(Math.random() * MAVERICK_HEX_IDS.length)];
+      
+      // Visual: Large Gold Cube with Purple Emissive
+      geometry = new THREE.BoxGeometry(2.0, 2.0, 2.0);
+      material = new THREE.MeshPhongMaterial({ 
+        color: 0xffd700, // Gold
+        emissive: 0xbc13fe, // Sovereign Purple glow
+        shininess: 100 
+      });
+      typeStr = `MAVERICK_${hexId}`;
+    } else {
+      // Standard: Cube or Spike
+      let isSpike = Math.random() > 0.5;
+      
+      if (isSpike) {
+        // Spike: ConeGeometry (4 radial segments = Pyramid)
+        geometry = new THREE.ConeGeometry(0.8, 1.5, 4); 
+        material = new THREE.MeshPhongMaterial({ color: 0xff4444, flatShading: true });
+        typeStr = "SPIKE";
+      } else {
+        geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+        material = new THREE.MeshPhongMaterial({ color: 0x00ff41 }); // Sovereign Green
+        typeStr = "CUBE";
+      }
+    }
+    
+    let mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(x, 1, z); // Y=1 is ground level
+    scene.add(mesh);
+    
+    this.obstacleQueue.enqueue({
+      mesh: mesh,
+      lane: lane,
+      type: typeStr,
+      spatialKey: spatialKey,
+      active: true
+    });
+  }
+
+  triggerDash() {
+    this.isDashing = true;
+    this.dashTimer = CONFIG.physics.dashDuration;
+  }
+  
+  triggerJump() {
+    if (!this.isJumping) {
+      this.isJumping = true;
+      this.jumpTimer = 0.8; // Jump duration in seconds
+    }
+  }
+  
+  triggerShoot() {
+    if (!this.isShooting) {
+      this.isShooting = true;
+      this.shootTimer = 0.4; // Shoot animation duration
+    }
+  }
+
+  update(deltaTime, inputDir, scene, bloomFilter) {
+    // 1. Handle Dash State
+    if (this.isDashing) {
+      this.dashTimer -= deltaTime;
+      this.currentSpeed = this.baseSpeed * CONFIG.physics.dashMultiplier;
+      if (this.dashTimer <= 0) {
+        this.isDashing = false;
+        this.currentSpeed = this.baseSpeed;
+      }
+    } else {
+      this.currentSpeed = this.baseSpeed;
+    }
+    
+    // 2. Handle Jump State
+    if (this.isJumping) {
+      this.jumpTimer -= deltaTime;
+      if (this.jumpTimer <= 0) {
+        this.isJumping = false;
+      }
+    }
+    
+    // 3. Handle Shoot State
+    if (this.isShooting) {
+      this.shootTimer -= deltaTime;
+      if (this.shootTimer <= 0) {
+        this.isShooting = false;
+      }
+    }
+
+    // 4. Handle Lane Switching Input
+    if (inputDir === -1 && this.currentLane > 0) this.currentLane--;
+    if (inputDir === 1 && this.currentLane < this.lanes - 1) this.currentLane++;
+    
+    // Calculate target X for 3D Actor
+    this.targetX = this.getLaneX(this.currentLane);
+
+    // 5. Lerp Player Movement (Snappy like Mega Man X)
+    this.playerPos.x += (this.targetX - this.playerPos.x) * CONFIG.physics.playerSpeed;
+
+    // 6. Update Obstacles & DSU Collision Detection (System Breach Protocol)
+    let obstacles = this.obstacleQueue.getAll();
+    
+    for (let i = 0; i < obstacles.length; i++) {
+      let obs = obstacles[i];
+      
+      // Skip inactive obstacles (destroyed by projectiles)
+      if (!obs.active) continue;
+      
+      // Move obstacle towards camera (positive Z)
+      obs.mesh.position.z += this.currentSpeed * deltaTime;
+
+      // Clean up Bloom Filter when obstacle moves away from spawn point
+      if (obs.spatialKey && obs.mesh.position.z > -45) {
+        bloomFilter.remove(obs.spatialKey);
+        obs.spatialKey = null;
+      }
+
+      // DSU-based Collision Detection: Check if player's set overlaps with obstacle's set
+      // This treats player and obstacles as 'sets' and checks for X/Z axis overlap
+      if (this.checkSetOverlap(this.playerPos, obs.mesh.position)) {
+        return true; // System Breach - Collision detected!
+      }
+
+      // Despawn if behind camera
+      let frontObs = this.obstacleQueue.front();
+      if (frontObs && frontObs.mesh.position.z > CONFIG.camera.positionZ + 5) {
+        scene.remove(frontObs.mesh);
+        frontObs.mesh.geometry.dispose();
+        frontObs.mesh.material.dispose();
+        this.obstacleQueue.dequeue();
+        this.score += 10;
+        i--; 
+      }
+    }
+
+    this.distance += this.currentSpeed * deltaTime;
+    
+    // Progressive difficulty
+    this.baseSpeed = CONFIG.physics.obstacleBaseSpeed + (this.distance / 500);
+    
+    return false; // No collision
+  }
+
+  reset(scene) {
+    this.currentLane = 2;
+    this.targetX = 0;
+    this.playerPos.set(0, 1, 0);
+    
+    // Clear Queue
+    while (!this.obstacleQueue.isEmpty()) {
+      let obs = this.obstacleQueue.dequeue();
+      scene.remove(obs.mesh);
+      obs.mesh.geometry.dispose();
+      obs.mesh.material.dispose();
+    }
+    
+    this.baseSpeed = CONFIG.physics.obstacleBaseSpeed;
+    this.score = 0;
+    this.distance = 0;
+    this.isDashing = false;
+    this.isJumping = false;
+    this.isShooting = false;
+  }
+}
+
+/**
+ * DashParticleSystem: High-performance particle system for the player's dash.
+ * Emits 'Data Diamonds' (Tetrahedrons) from character's feet.
+ * Implements 0.92 decay rate and 018810 Parity (Green/White alternation).
+ * Massless - managed via a single BufferGeometry for CPU efficiency.
+ */
+class DashParticleSystem {
+  constructor(scene) {
+    const maxParticles = 400;
+    this.geometry = new THREE.BufferGeometry();
+    
+    const positions = new Float32Array(maxParticles * 3);
+    const colors = new Float32Array(maxParticles * 3);
+    const sizes = new Float32Array(maxParticles);
+    const lifes = new Float32Array(maxParticles);
+    
+    lifes.fill(0);
+    
+    const colGreen = new THREE.Color(0x00ff41);
+    const colWhite = new THREE.Color(0xffffff);
+    
+    for (let i = 0; i < maxParticles; i++) {
+      const isEven = (i % 2 === 0);
+      const r = isEven ? colGreen.r : colWhite.r;
+      const g = isEven ? colGreen.g : colWhite.g;
+      const b = isEven ? colGreen.b : colWhite.b;
+      
+      colors[i * 3] = r;
+      colors[i * 3 + 1] = g;
+      colors[i * 3 + 2] = b;
+    }
+    
+    this.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    this.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    this.geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+    this.geometry.setAttribute('life', new THREE.BufferAttribute(lifes, 1));
+    
+    this.posArray = positions;
+    this.lifeArray = lifes;
+    this.sizeArray = sizes;
+    this.posAttr = this.geometry.attributes.position;
+    this.sizeAttr = this.geometry.attributes.size;
+    this.lifeAttr = this.geometry.attributes.life;
+    this.count = maxParticles;
+    
+    this.material = new THREE.ShaderMaterial({
+      uniforms: {},
+      vertexShader: `
+        attribute float size;
+        attribute vec3 color;
+        attribute float life;
+        varying vec3 vColor;
+        varying float vLife;
+        void main() {
+          vColor = color;
+          vLife = life;
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = size * (400.0 / -mvPosition.z);
+          gl_Position = projectionMatrix * mvPosition;
+        }
+      `,
+      fragmentShader: `
+        varying vec3 vColor;
+        varying float vLife;
+        void main() {
+          vec2 uv = gl_PointCoord - vec2(0.5);
+          float dist = abs(uv.x) + abs(uv.y);
+          if (dist > 0.5) discard;
+          
+          float alpha = (1.0 - (dist * 2.0)) * vLife;
+          
+          gl_FragColor = vec4(vColor, alpha);
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
+    
+    this.system = new THREE.Points(this.geometry, this.material);
+    scene.add(this.system);
+  }
+  
+  update(deltaTime, playerPos, isDashing) {
+    const decayRate = 0.92;
+    
+    if (isDashing) {
+      let emitted = 0;
+      const emitCount = 4;
+      
+      for (let i = 0; i < this.count && emitted < emitCount; i++) {
+        if (this.lifeArray[i] <= 0.01) {
+          this.lifeArray[i] = 1.0;
+          this.sizeArray[i] = 8.0 + Math.random() * 8.0;
+          
+          this.posArray[i * 3] = playerPos.x + (Math.random() - 0.5) * 0.4;
+          this.posArray[i * 3 + 1] = 0.2 + (Math.random() * 0.2);
+          this.posArray[i * 3 + 2] = playerPos.z + (Math.random() - 0.5) * 0.4;
+          
+          emitted++;
+        }
+      }
+    }
+    
+    for (let i = 0; i < this.count; i++) {
+      if (this.lifeArray[i] > 0.01) {
+        this.lifeArray[i] *= decayRate;
+        this.posArray[i * 3 + 2] += deltaTime * 5.0;
+        this.posArray[i * 3] += (Math.random() - 0.5) * 0.1;
+      } else {
+        this.sizeArray[i] = 0;
+        this.lifeArray[i] = 0;
+      }
+    }
+    
+    this.posAttr.needsUpdate = true;
+    this.sizeAttr.needsUpdate = true;
+    this.lifeAttr.needsUpdate = true;
+  }
+}
+
+/**
+ * CareerStack: Handles Persistence and Attribute Mirroring
+ * Section 9: Career Stack & HUD (Persistence)
+ */
+class CareerStack {
+  constructor() {
+    this.storage = window.localStorage;
+    this.key = 'sov_career_v48';
+    this.stats = {
+      highYardage: 0,
+      touchdowns: 0,
+      credits: 0,
+      milestoneLevel: 0
+    };
+    this.ingestedColor = null; // Color from ingested card
+    this.load();
+  }
+
+  load() {
+    let data = this.storage[this.key];
+    if (data) {
+      try {
+        this.stats = JSON.parse(data);
+      } catch(e) { console.error("Career Stack Corrupt"); }
+    }
+  }
+
+  save() {
+    this.storage[this.key] = JSON.stringify(this.stats);
+  }
+
+  checkHighScore(yardage) {
+    if (yardage > this.stats.highYardage) {
+      this.stats.highYardage = Math.floor(yardage);
+      this.save();
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Check for Hex Milestone unlock
+   * Milestones occur every 31 yards ($1F hex)
+   */
+  checkMilestone(yardage) {
+    let newLevel = Math.floor(yardage / CONFIG.milestones.hexInterval);
+    if (newLevel > this.stats.milestoneLevel) {
+      this.stats.milestoneLevel = newLevel;
+      this.save();
+      return true; // Milestone reached!
+    }
+    return false;
+  }
+
+  /**
+   * Get the unlocked color based on milestone level
+   */
+  getUnlockedColor() {
+    if (this.stats.milestoneLevel > 0) {
+      let colorIndex = (this.stats.milestoneLevel - 1) % CONFIG.milestones.unlockColors.length;
+      return CONFIG.milestones.unlockColors[colorIndex];
+    }
+    return this.ingestedColor || CONFIG.colors.green;
+  }
+
+  /**
+   * Set the color from ingested card
+   */
+  setIngestedColor(colorHex) {
+    this.ingestedColor = colorHex;
+  }
+
+  getMirroredAttribute(statName) {
+    if (statName === 'speed') return 0.9; 
+    return 1.0;
+  }
+
+  /**
+   * Clear all saved data (Reboot System)
+   */
+  clear() {
+    this.stats = {
+      highYardage: 0,
+      touchdowns: 0,
+      credits: 0,
+      milestoneLevel: 0
+    };
+    this.save();
+  }
+}
+
+/**
+ * ResponsiveScaler: Handles portrait/landscape detection and aspect ratio
+ * Section 10: The Sovereign PWA Manifest (Deployment)
+ */
+class ResponsiveScaler {
+  constructor(canvas, container, renderer) {
+    this.canvas = canvas;
+    this.container = container;
+    this.renderer = renderer;
+    this.targetAspect = CONFIG.canvasW / CONFIG.canvasH;
+    this.setupResizeListener();
+  }
+
+  setupResizeListener() {
+    window.addEventListener('resize', () => this.scale());
+    this.scale(); // Initial scale
+  }
+
+  scale() {
+    const containerWidth = this.container.clientWidth;
+    const containerHeight = this.container.clientHeight;
+    const containerAspect = containerWidth / containerHeight;
+    
+    let renderWidth, renderHeight;
+
+    if (containerAspect > this.targetAspect) {
+      // Container is wider than target - fit to height
+      renderHeight = containerHeight;
+      renderWidth = renderHeight * this.targetAspect;
+    } else {
+      // Container is taller than target - fit to width
+      renderWidth = containerWidth;
+      renderHeight = renderWidth / this.targetAspect;
+    }
+
+    // Center the canvas
+    this.canvas.style.width = `${renderWidth}px`;
+    this.canvas.style.height = `${renderHeight}px`;
+    this.canvas.style.position = 'absolute';
+    this.canvas.style.left = `${(containerWidth - renderWidth) / 2}px`;
+    this.canvas.style.top = `${(containerHeight - renderHeight) / 2}px`;
+    
+    // Update renderer size
+    this.renderer.setSize(CONFIG.canvasW, CONFIG.canvasH, false);
+  }
+}
+
+/**
+ * PWAInstaller: Handles Web App Manifest and Service Worker
+ */
+class PWAInstaller {
+  constructor() {
+    this.setupManifest();
+    this.setupServiceWorker();
+  }
+
+  setupManifest() {
+    const manifest = {
+      name: "Sovereign Engine",
+      short_name: "Sovereign",
+      start_url: ".",
+      display: "standalone",
+      background_color: "#050505",
+      theme_color: "#00ff41",
+      orientation: "portrait",
+      icons: [
+        {
+          src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23050505'/><text x='50' y='60' font-size='50' text-anchor='middle' fill='%2300ff41'>S</text></svg>",
+          sizes: "192x192",
+          type: "image/svg+xml"
+        }
+      ]
+    };
+    
+    const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+    const manifestUrl = URL.createObjectURL(manifestBlob);
+    document.getElementById('manifestLinkEl').href = manifestUrl;
+  }
+
+  async setupServiceWorker() {
+    if ('serviceWorker' in navigator) {
+      // Inline service worker for offline capability
+      const swCode = `
+        const CACHE_NAME = 'sov-engine-v48';
+        
+        self.addEventListener('install', (event) => {
+          event.waitUntil(
+            caches.open(CACHE_NAME).then((cache) => {
+              return cache.addAll([
+                './',
+                'https://esm.sh/three@0.177.0'
+              ]);
+            })
+          );
+        });
+        
+        self.addEventListener('fetch', (event) => {
+          event.respondWith(
+            caches.match(event.request).then((response) => {
+              return response || fetch(event.request);
+            })
+          );
+        });
+      `;
+      
+      const swBlob = new Blob([swCode], {type: 'application/javascript'});
+      const swUrl = URL.createObjectURL(swBlob);
+      
+      try {
+        await navigator.serviceWorker.register(swUrl);
+        console.log('Service Worker registered');
+      } catch (err) {
+        console.log('Service Worker registration failed:', err);
+      }
+    }
+  }
+}
+
+// --- MAIN APPLICATION ---
+
+let canvas, renderer, scene, camera;
+let lattice, physics, career, bloom, buster;
+let latticeFloor;
+let dashParticles;
+let animModel; // AnimModel controller for 3D Actor animations
+let audioCtx, analyser, dataArray;
+let isRunning = false;
+let animationId;
+let inputQueue = 0;
+let frameCount = 0;
+let clock = new THREE.Clock();
+
+// Camera Shake State for System Breach Event
+let cameraShake = {
+  active: false,
+  timer: 0,
+  originalPos: new THREE.Vector3()
+};
+
+// Flash Overlay for System Breach
+let flashOverlayEl;
+
+let playerMesh, obstacleMeshes = [];
+
+// Touch input for Sovereign Buster
+let touchStartTime = 0;
+let isTouching = false;
+let touchX = 0;
+let touchY = 0;
+
+// DOM Elements
+const scoreEl = document.getElementById('scoreValEl');
+const syncEl = document.getElementById('syncValEl');
+const highScoreEl = document.getElementById('highScoreValEl');
+const clustersEl = document.getElementById('clustersValEl');
+const modalEl = document.getElementById('modalOverlayEl');
+const fileInput = document.getElementById('fileInputEl');
+const uploadBtn = document.getElementById('uploadBtn');
+const startBtn = document.getElementById('startBtn');
+const rebootBtn = document.getElementById('rebootBtn');
+const leftBtn = document.getElementById('leftBtn');
+const rightBtn = document.getElementById('rightBtn');
+const chargeIndicatorEl = document.getElementById('chargeIndicatorEl');
+const chargeBarEl = document.getElementById('chargeBarEl');
+const milestoneEl = document.getElementById('milestoneEl');
+
+let lastTapTime = { left: 0, right: 0 };
+
+// PWA and Scaler instances
+let pwaInstaller, responsiveScaler;
+
+// Initialization
+function init() {
+  canvas = document.getElementById('gameCanvasEl');
+  flashOverlayEl = document.getElementById('flashOverlayEl');
+  
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(CONFIG.colors.bg);
+  scene.fog = new THREE.Fog(CONFIG.fog.color, CONFIG.fog.near, CONFIG.fog.far);
+
+  camera = new THREE.PerspectiveCamera(
+    CONFIG.camera.fov,
+    CONFIG.canvasW / CONFIG.canvasH,
+    CONFIG.camera.near,
+    CONFIG.camera.far
+  );
+  
+  camera.position.set(0, CONFIG.camera.positionY, CONFIG.camera.positionZ);
+  camera.lookAt(0, 0, 0);
+  camera.rotation.x = CONFIG.camera.tiltAngle;
+
+  renderer = new THREE.WebGLRenderer({
+    canvas: canvas,
+    antialias: false,
+    powerPreference: "high-performance"
+  });
+  renderer.setSize(CONFIG.canvasW, CONFIG.canvasH, false);
+  renderer.setPixelRatio(1);
+
+  const ambientLight = new THREE.AmbientLight(0x404040);
+  scene.add(ambientLight);
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+  directionalLight.position.set(0, 10, 10);
+  scene.add(directionalLight);
+
+  lattice = new SovereignLattice(CONFIG.latticeW, CONFIG.latticeH);
+  bloom = new SovereignBloom();
+  career = new CareerStack();
+  physics = new GauntletPhysics(lattice);
+  buster = new SovereignBuster(scene, bloom);
+
+  create3DObjects();
+  setupInput();
+  setupAudio();
+  setupCardIngest();
+  
+  // Initialize PWA features
+  pwaInstaller = new PWAInstaller();
+  responsiveScaler = new ResponsiveScaler(canvas, document.getElementById('sovContainerEl'), renderer);
+  
+  // Update high score display
+  highScoreEl.textContent = career.stats.highYardage;
+
+  startBtn.onclick = () => {
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    modalEl.classList.add('hidden');
+    isRunning = true;
+    lattice.reset();
+    physics.reset(scene);
+    bloom.flush();
+    buster.clear();
+    loop();
+  };
+
+  // Reboot System button
+  rebootBtn.onclick = () => {
+    career.clear();
+    // Clear SovereignLRU cache (simulated by clearing localStorage key)
+    localStorage.removeItem('sov_career_v48');
+    location.reload();
+  };
+}
+
+function create3DObjects() {
+  latticeFloor = new LatticeFloor(scene, lattice);
+  dashParticles = new DashParticleSystem(scene);
+  
+  const playerGeometry = new THREE.ConeGeometry(0.4, 1.2, 8);
+  playerGeometry.rotateX(Math.PI);
+  const playerMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0xffffff,
+    emissive: 0x004411,
+    roughness: 0.4
+  });
+  playerMesh = new THREE.Mesh(playerGeometry, playerMaterial);
+  scene.add(playerMesh);
+  
+  // Initialize AnimModel controller for 3D Actor animations
+  animModel = new AnimModel(playerMesh);
+}
+
+function setupInput() {
+  const bindTouch = (el, dir) => {
+    el.addEventListener('touchstart', (e) => { 
+      e.preventDefault(); 
+      e.stopPropagation();
+      
+      let now = Date.now();
+      let key = dir === -1 ? 'left' : 'right';
+      
+      if (now - lastTapTime[key] < CONFIG.physics.doubleTapThreshold) {
+        physics.triggerDash();
+      }
+      lastTapTime[key] = now;
+      
+      inputQueue = dir; 
+    }, { passive: false });
+    
+    el.addEventListener('touchend', (e) => { 
+      e.preventDefault(); 
+      e.stopPropagation();
+      inputQueue = 0; 
+    }, { passive: false });
+
+    el.addEventListener('mousedown', (e) => {
+      let now = Date.now();
+      let key = dir === -1 ? 'left' : 'right';
+      if (now - lastTapTime[key] < CONFIG.physics.doubleTapThreshold) physics.triggerDash();
+      lastTapTime[key] = now;
+      inputQueue = dir; 
+    });
+    el.addEventListener('mouseup', (e) => { inputQueue = 0; });
+    el.addEventListener('mouseleave', (e) => { inputQueue = 0; });
+  };
+
+  bindTouch(leftBtn, -1);
+  bindTouch(rightBtn, 1);
+
+  // Canvas touch for Sovereign Buster
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    touchX = touch.clientX - rect.left;
+    touchY = touch.clientY - rect.top;
+    
+    isTouching = true;
+    touchStartTime = Date.now();
+    
+    // Start charging
+    buster.startCharge(physics.currentLane);
+    chargeIndicatorEl.style.display = 'block';
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    isTouching = false;
+    chargeIndicatorEl.style.display = 'none';
+    chargeBarEl.style.width = '0%';
+    
+    // Fire projectile
+    buster.fire(physics.currentSpeed, physics.playerPos.x, physics.playerPos.z);
+    physics.triggerShoot();
+  }, { passive: false });
+
+  // Mouse support for desktop testing
+  canvas.addEventListener('mousedown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    touchX = e.clientX - rect.left;
+    touchY = e.clientY - rect.top;
+    
+    isTouching = true;
+    touchStartTime = Date.now();
+    
+    buster.startCharge(physics.currentLane);
+    chargeIndicatorEl.style.display = 'block';
+  });
+
+  canvas.addEventListener('mouseup', (e) => {
+    isTouching = false;
+    chargeIndicatorEl.style.display = 'none';
+    chargeBarEl.style.width = '0%';
+    
+    buster.fire(physics.currentSpeed, physics.playerPos.x, physics.playerPos.z);
+    physics.triggerShoot();
+  });
+}
+
+function setupAudio() {
+  try {
+    let AudioContext = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new AudioContext();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 512;
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+      let source = audioCtx.createMediaStreamSource(stream);
+      source.connect(analyser);
+    }).catch(err => {
+      console.log("Audio Ingest Failed: Silent Mode");
+    });
+  } catch(e) {
+    console.log("Web Audio API not supported");
+  }
+}
+
+function setupCardIngest() {
+  const cardPreview = document.getElementById('cardPreviewEl');
+
+  uploadBtn.onclick = () => fileInput.click();
+  
+  fileInput.onchange = (e) => {
+    let file = e.target.files[0];
+    if (!file) return;
+
+    let reader = new FileReader();
+    reader.onload = (event) => {
+      let img = new Image();
+      img.onload = () => {
+        let tmpC = document.createElement('canvas');
+        tmpC.width = 1; tmpC.height = 1;
+        let tCtx = tmpC.getContext('2d');
+        tCtx.drawImage(img, 0, 0, 1, 1);
+        let p = tCtx.getImageData(0,0,1,1).data;
+        
+        let avg = (p[0] + p[1] + p[2]) / 3;
+        let isParityGreen = (Math.floor(avg) % 2 === 0);
+
+        let newGreen = isParityGreen ? '#00ff41' : '#ffff00';
+        let newPurple = isParityGreen ? '#bc13fe' : '#ff0055';
+        
+        document.documentElement.style.setProperty('--sov-green', newGreen);
+        document.documentElement.style.setProperty('--sov-purple', newPurple);
+        
+        // Store ingested color in career stack
+        career.setIngestedColor(newGreen);
+        
+        if (latticeFloor) latticeFloor.setColor(newGreen);
+        
+        cardPreview.textContent = "INGESTED";
+        cardPreview.style.borderColor = isParityGreen ? 'var(--sov-green)' : 'var(--sov-purple)';
+        cardPreview.style.color = isParityGreen ? 'var(--sov-green)' : 'var(--sov-purple)';
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+}
+
+/**
+ * Trigger System Breach Event - DSU Collision Response
+ * Flashes screen Sovereign Purple, resets speed to 0, and shakes camera
+ */
+function triggerSystemBreach() {
+  // 1. Flash screen Sovereign Purple
+  flashOverlayEl.classList.remove('hidden');
+  flashOverlayEl.style.opacity = '0.8';
+  
+  setTimeout(() => {
+    flashOverlayEl.style.opacity = '0';
+    setTimeout(() => {
+      flashOverlayEl.classList.add('hidden');
+    }, 100);
+  }, CONFIG.collision.flashDuration * 1000);
+  
+  // 2. Reset speed to 0
+  physics.baseSpeed = 0;
+  physics.currentSpeed = 0;
+  
+  // 3. Camera shake using sine-wave function for 200ms
+  cameraShake.active = true;
+  cameraShake.timer = CONFIG.collision.shakeDuration;
+  cameraShake.originalPos.copy(camera.position);
+}
+
+function showMilestoneNotification() {
+  milestoneEl.style.display = 'block';
+  setTimeout(() => {
+    milestoneEl.style.display = 'none';
+  }, 2000);
+}
+
+function updateLattice() {
+  // LatticeFloor handles its own rendering
+}
+
+function updatePlayer() {
+  // Get current animation pose from AnimModel
+  let pose = animModel.getPose();
+  
+  // Copy physics position
+  playerMesh.position.copy(physics.playerPos);
+  
+  // Apply animation rotation
+  playerMesh.rotation.x = pose.rotation.x;
+  playerMesh.rotation.y = pose.rotation.y;
+  
+  // Combine tilt (from lane switching) with animation Z rotation
+  let tilt = (physics.targetX - physics.playerPos.x) * 0.5;
+  playerMesh.rotation.z = pose.rotation.z - tilt;
+  
+  // Apply animation Y offset (bobbing)
+  playerMesh.position.y = 1 + pose.offsetY;
+  
+  // Apply animation scale
+  playerMesh.scale.set(pose.scale.x, pose.scale.y, pose.scale.z);
+}
+
+function loop() {
+  if (!isRunning) return;
+
+  let deltaTime = clock.getDelta();
+  let totalTime = clock.getElapsedTime();
+  if (deltaTime > 0.1) deltaTime = 0.1;
+
+  // Update charge indicator
+  if (isTouching) {
+    let chargeDuration = Date.now() - touchStartTime;
+    let chargePercent = Math.min(100, (chargeDuration / CONFIG.buster.chargeTime) * 100);
+    chargeBarEl.style.width = chargePercent + '%';
+    
+    // Change color when fully charged
+    if (chargePercent >= 100) {
+      chargeBarEl.style.background = CONFIG.colors.purple;
+      document.getElementById('chargeTextEl').textContent = 'DATA DIAMOND READY';
+    } else {
+      chargeBarEl.style.background = 'linear-gradient(90deg, var(--sov-green), var(--sov-purple))';
+      document.getElementById('chargeTextEl').textContent = 'CHARGING...';
+    }
+  }
+
+  // 1. Physics & Logic
+  if (analyser) {
+    analyser.getByteFrequencyData(dataArray);
+    lattice.ingestAudio(dataArray);
+  }
+  
+  lattice.applyDrift(bloom);
+  lattice.decay();
+
+  let spawnRate = 60 / (physics.currentSpeed / 10); 
+  if (frameCount % Math.floor(spawnRate) === 0) {
+    if (Math.random() > 0.3) physics.spawnObstacle(scene, bloom, frameCount);
+  }
+
+  let collision = physics.update(deltaTime, inputQueue, scene, bloom);
+  
+  // 2. Update Sovereign Buster (projectiles)
+  let destroyedObstacles = buster.update(deltaTime, physics.obstacleQueue.getAll());
+  
+  // Remove destroyed obstacles from scene and queue
+  for (let obs of destroyedObstacles) {
+    scene.remove(obs.mesh);
+    obs.mesh.geometry.dispose();
+    obs.mesh.material.dispose();
+    // Remove from queue (filter out inactive ones)
+    let obstacles = physics.obstacleQueue.getAll();
+    let index = obstacles.indexOf(obs);
+    if (index > -1) {
+      obstacles.splice(index, 1);
+    }
+    physics.score += 25; // Bonus for destroying obstacles
+  }
+  
+  // 3. Update AnimModel controller
+  // Pass animation states and current velocity to preserve forward momentum
+  animModel.update(
+    deltaTime,
+    physics.isDashing,
+    physics.isJumping,
+    physics.isShooting,
+    physics.currentSpeed
+  );
+  
+  if (collision) {
+    triggerSystemBreach(); // DSU collision detected - trigger System Breach
+    isRunning = false; // Stop the game
+    cancelAnimationFrame(animationId);
+    modalEl.classList.remove('hidden');
+    document.querySelector('#modalOverlayEl h1').textContent = "SYSTEM BREACH";
+    const descDiv = document.querySelector('#modalOverlayEl div'); 
+    if(descDiv) {
+      descDiv.innerHTML = `<span style="color:var(--sov-purple)">DSU COLLISION DETECTED</span><br>SCORE: ${physics.score}<br>YARDS: ${Math.floor(physics.distance)}`;
+    }
+    startBtn.textContent = "REBOOT SYSTEM";
+  }
+
+  // 4. Update Career Stack and HUD
+  if (frameCount % 10 === 0) {
+    career.checkHighScore(physics.distance);
+    scoreEl.textContent = Math.floor(physics.distance);
+    syncEl.textContent = Math.floor(Math.random() * 100000).toString(16).toUpperCase();
+    highScoreEl.textContent = career.stats.highYardage;
+    clustersEl.textContent = lattice.dsu.getSetCount();
+    
+    // Check for hex milestone
+    if (career.checkMilestone(physics.distance)) {
+      showMilestoneNotification();
+      // Update lattice color to unlocked color
+      if (latticeFloor) {
+        latticeFloor.setColor(career.getUnlockedColor());
+      }
+    }
+  }
+
+  // 5. Camera Shake (System Breach Effect)
+  if (cameraShake.active) {
+    cameraShake.timer -= deltaTime;
+    if (cameraShake.timer > 0) {
+      // Sine-wave shake function
+      let shakeIntensity = (cameraShake.timer / CONFIG.collision.shakeDuration);
+      let offsetX = Math.sin(totalTime * 50) * CONFIG.collision.shakeAmplitude * shakeIntensity;
+      let offsetY = Math.cos(totalTime * 50) * CONFIG.collision.shakeAmplitude * shakeIntensity;
+      
+      camera.position.x = cameraShake.originalPos.x + offsetX;
+      camera.position.y = cameraShake.originalPos.y + offsetY;
+    } else {
+      cameraShake.active = false;
+      camera.position.copy(cameraShake.originalPos);
+    }
+  }
+
+  // 6. Render
+  if (latticeFloor) {
+    latticeFloor.setSpeed(physics.currentSpeed);
+    
+    if (physics.isDashing) {
+      latticeFloor.setPulseSpeed(12.0);
+    } else {
+      latticeFloor.setPulseSpeed(4.0);
+    }
+    
+    latticeFloor.update(deltaTime, totalTime);
+  }
+
+  if (dashParticles) {
+    dashParticles.update(deltaTime, physics.playerPos, physics.isDashing);
+  }
+  
+  updatePlayer();
+  renderer.render(scene, camera);
+
+  frameCount++;
+  animationId = requestAnimationFrame(loop);
+}
+
+// Start the engine
+init();
+
+</script>
+</body>
+</html>
